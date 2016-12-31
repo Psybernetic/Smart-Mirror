@@ -2,24 +2,22 @@
 # requirements
 # requests, feedparser, traceback, Pillow
 
-from Tkinter import *
+import json
 import locale
 import threading
 import time
-import requests
-import json
-import re
 import traceback
-import feedparser
-
-from urllib2 import urlopen
-from PIL import Image, ImageTk
+from Tkinter import *
 from contextlib import contextmanager
+
+import feedparser
+import requests
+from PIL import Image, ImageTk
 
 LOCALE_LOCK = threading.Lock()
 
 ip = '<IP>'
-ui_locale = '' # e.g. 'fr_FR' fro French, '' as default
+ui_locale = '' # e.g. 'fr_FR' for French, '' as default
 time_format = 12 # 12 or 24
 date_format = "%b %d, %Y" # check python doc for strftime() for options
 news_country_code = None
@@ -33,10 +31,20 @@ large_text_size = 48
 medium_text_size = 28
 small_text_size = 18
 
+def get_ip():
+    #get current machine external ip
+    try:
+        ip_url = "http://jsonip.com/"
+        ip_response = requests.get(ip_url)
+        ip_json = json.loads(ip_response.text)
+        return ip_json['ip']
+    except Exception as e:
+        traceback.print_exc()
+        return "Error: %s. Cannot get ip." % e
+
 def get_current_geolocation():
     # get current geo-location data
-    data = str(urlopen('http://checkip.dyndns.com/').read())
-    this_ip = re.compile(r'(\d+.\d+.\d+.\d+)').search(data).group(1)
+    this_ip = get_ip()
     location_req_url = "http://freegeoip.net/json/%s" % this_ip
     r = requests.get(location_req_url)
     return json.loads(r.text)
@@ -139,23 +147,11 @@ class Weather(Frame):
         self.locationLbl.pack(side=TOP, anchor=W)
         self.get_weather()
 
-    def get_ip(self):
-        try:
-            ip_url = "http://jsonip.com/"
-            req = requests.get(ip_url)
-            ip_json = json.loads(req.text)
-            return ip_json['ip']
-        except Exception as e:
-            traceback.print_exc()
-            return "Error: %s. Cannot get ip." % e
-
     def get_weather(self):
         try:
 
             if latitude is None and longitude is None:
                 # get location
-                location_req_url = "http://freegeoip.net/json/%s" % self.get_ip()
-                r = requests.get(location_req_url)
                 location_obj = get_current_geolocation()
 
                 lat = location_obj['latitude']
