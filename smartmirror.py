@@ -8,9 +8,11 @@ import threading
 import time
 import requests
 import json
+import re
 import traceback
 import feedparser
 
+from urllib2 import urlopen
 from PIL import Image, ImageTk
 from contextlib import contextmanager
 
@@ -20,7 +22,7 @@ ip = '<IP>'
 ui_locale = '' # e.g. 'fr_FR' fro French, '' as default
 time_format = 12 # 12 or 24
 date_format = "%b %d, %Y" # check python doc for strftime() for options
-news_country_code = 'us'
+news_country_code = None
 weather_api_token = '<TOKEN>' # create account at https://darksky.net/dev/
 weather_lang = 'en' # see https://darksky.net/dev/docs/forecast for full list of language parameters values
 weather_unit = 'us' # see https://darksky.net/dev/docs/forecast for full list of unit parameters values
@@ -30,6 +32,20 @@ xlarge_text_size = 94
 large_text_size = 48
 medium_text_size = 28
 small_text_size = 18
+
+def get_current_geolocation():
+    # get current geo-location data
+    data = str(urlopen('http://checkip.dyndns.com/').read())
+    this_ip = re.compile(r'(\d+.\d+.\d+.\d+)').search(data).group(1)
+    location_req_url = "http://freegeoip.net/json/%s" % this_ip
+    r = requests.get(location_req_url)
+    return json.loads(r.text)
+
+def get_current_country_code():
+    #get current country code
+    geolocation = get_current_geolocation()
+    return geolocation['country_code'].lower()
+
 
 @contextmanager
 def setlocale(name): #thread proof function to work with locale
@@ -140,7 +156,7 @@ class Weather(Frame):
                 # get location
                 location_req_url = "http://freegeoip.net/json/%s" % self.get_ip()
                 r = requests.get(location_req_url)
-                location_obj = json.loads(r.text)
+                location_obj = get_current_geolocation()
 
                 lat = location_obj['latitude']
                 lon = location_obj['longitude']
@@ -225,6 +241,9 @@ class News(Frame):
             # remove all children
             for widget in self.headlinesContainer.winfo_children():
                 widget.destroy()
+
+            news_country_code = get_current_country_code()
+
             if news_country_code == None:
                 headlines_url = "https://news.google.com/news?ned=us&output=rss"
             else:
